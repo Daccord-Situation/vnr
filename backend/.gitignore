@@ -1,0 +1,34 @@
+# --- Dépendances ---
+node_modules/
+
+# --- Build ---
+dist/
+
+# --- Variables d'environnement et secrets ---
+.env
+.env.local
+.env.*.local
+# .env.example reste versionné (modèle sans secret)
+
+# --- Logs ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Tests et couverture ---
+coverage/
+
+# --- Prisma : fichiers générés (le client est régénéré à l'installation) ---
+# Schéma et migrations restent versionnés.
+# prisma/migrations/dev.db (si SQLite en local — non applicable en PostgreSQL)
+
+# --- OS / éditeur ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# --- TypeScript incremental build info ---
+*.tsbuildinfo

@@ -1,0 +1,110 @@
+// =============================================================================
+//  VNR — Schéma de base de données (PROPOSITION Sprint 0)
+//  Incrément I1 : socle SaaS sécurisé
+//  Développeur : Taphsir Abdoulaye
+// -----------------------------------------------------------------------------
+//  Fondation multi-tenant : chaque entreprise cliente est un tenant dont les
+//  données sont strictement isolées (invariant I01 — Phase A6).
+//
+//  Ce schéma est une proposition initiale. Il sera complété au fil des
+//  incréments selon la Phase B (conception fonctionnelle détaillée).
+//  Toute décision de structure doit rester cohérente avec le cadrage et la
+//  matrice A6 (gel définitif).
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+//  Fondation multi-tenant
+// ---------------------------------------------------------------------------
+
+/// Entreprise cliente = tenant. Frontière d'isolation absolue des données.
+/// Le Platform Side crée/active le tenant ; le Business Side le configure.
+model Tenant {
+  id          String      @id @default(cuid())
+  name        String
+  status      TenantStatus @default(TRIAL)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  users       User[]
+
+  @@map("tenants")
+}
+
+/// Cycle de vie d'une entreprise (Cadrage Platform Side §10).
+enum TenantStatus {
+  TRIAL
+  ACTIVE
+  EXPIRING_SOON
+  GRACE_PERIOD
+  SUSPENDED
+  TERMINATED
+  ARCHIVED
+}
+
+// ---------------------------------------------------------------------------
+//  Utilisateurs (Platform & Business)
+// ---------------------------------------------------------------------------
+
+/// Utilisateur du système. Le domaine sépare les deux perspectives.
+/// Un utilisateur Platform appartient à Daccord Situation (tenantId null).
+/// Un utilisateur Business appartient à une entreprise cliente (tenantId requis).
+model User {
+  id          String     @id @default(cuid())
+  email       String     @unique
+  fullName    String
+  domain      UserDomain
+  status      UserStatus  @default(ACTIVE)
+  tenantId    String?
+  tenant      Tenant?     @relation(fields: [tenantId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Index sur tenantId pour les requêtes scoppées.
+  @@index([tenantId])
+  @@map("users")
+}
+
+/// Domaine d'autorisation : Platform (Daccord Situation) ou Business (entreprise cliente).
+/// Namespaces stricts platform.* / business.* — aucune collision ni héritage implicite (A6).
+enum UserDomain {
+  PLATFORM
+  BUSINESS
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+  SUSPENDED
+}
+
+// ---------------------------------------------------------------------------
+//  Notes pour les incréments suivants (hors Sprint 0)
+// ---------------------------------------------------------------------------
+//  À modéliser selon la Phase B :
+//    - Role & Permission (RBAC : union des rôles + ALLOW exceptionnel Business)
+//    - Branch (Data Scope : SELF / CURRENT_BRANCH / ASSIGNED_BRANCHES / ALL_BRANCHES)
+//    - Subscription & Plan (entitlements, cycle d'abonnement)
+//    - Audit (socle immuable : actor, target, tenant/branch, before/after, reason,
+//      result, timestamp serveur, correlation_id)
+//    - Entités métier Business : Customer, Product, Supplier, Purchase, Stock,
+//      Sale, Invoice, Payment, Expense, etc.
+//
+//  Invariants A6 à respecter dans le modèle de données :
+//    I01 Isolation tenant absolue
+//    I03 ≥ 1 Super Admin VNR actif
+//    I04 ≥ 1 Owner actif par tenant
+//    I05 Réévaluation immédiate après révocation
+//    I06 Anti-escalade via rôle personnalisé, cumul, ALLOW ou scope
+//    I10 Corrections financières non destructives
+//    I13 Archivage non destructif
+//    I14 Audit fonctionnel immuable via RBAC métier

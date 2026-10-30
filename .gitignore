@@ -1,0 +1,62 @@
+# =============================================================
+#  VNR — .gitignore racine du monorepo
+#  Daccord Situation — Projet VNR
+# =============================================================
+
+# --- Dépendances ---
+node_modules/
+
+# --- Variables d'environnement et secrets ---
+# RÈGLE ABSOLUE (mandat Sprint 0) : aucun secret dans Git.
+.env
+.env.local
+.env.*.local
+# .env.example reste versionné dans chaque sous-projet (modèle sans secret)
+
+# --- Builds ---
+dist/
+build/
+out/
+
+# --- Tests et couverture ---
+coverage/
+
+# --- Logs ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Cache outils ---
+.eslintcache
+.parcelcache
+.turbo
+
+# --- TypeScript incremental build info ---
+*.tsbuildinfo
+
+# --- Prisma : client généré (régénéré via prisma generate) ---
+# Le schéma et les migrations restent versionnés.
+
+# --- Documents de cadrage Phase A (livrables produit — non versionnés dans le code) ---
+# Ces fichiers restent localement pour référence ; ils ne font pas partie du code source.
+*.pdf
+*.pptx
+*.docx
+
+# --- Artefacts temporaires ---
+_extracted/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Éditeurs ---
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
