@@ -1,115 +1,117 @@
 # VNR — Backend
 
-Socle backend de la plateforme SaaS VNR (Daccord Situation).
+Backend de la plateforme SaaS VNR.
 **Sprint 0 — Incrément I1 : socle SaaS sécurisé.**
-Développeur backend : **Taphsir Abdoulaye**.
+Développeur : **Taphsir Abdoulaye**
+
+Stack validée : **Node.js · TypeScript · Express · PostgreSQL · Prisma**
 
 ---
 
-## Contexte
+## Prérequis
 
-VNR est une plateforme SaaS multi-tenant de gestion et de pilotage d'entreprise.
-Le backend est **l'autorité finale** pour toutes les décisions d'autorisation
-(Phase A6 — gel définitif). L'interface ne constitue jamais un contrôle de sécurité.
-
-Deux perspectives strictement séparées :
-
-| Perspective | Utilisateur | Rôle |
-|---|---|---|
-| **Platform Side** | Daccord Situation | Exploite VNR (entreprises, plans, abonnements, support) |
-| **Business Side** | Entreprise cliente | Gère son activité (ventes, stock, finance…) |
-
-> ⚠️ Sprint 0 : aucun droit, workflow métier ou fonctionnalité non validée
-> n'est implémenté. Le périmètre se limite au socle exécutable + `/health`.
-
----
-
-## Stack technique (proposition à valider par VNR – Responsable)
-
-| Composant | Choix | Motivation |
-|---|---|---|
-| Framework | **NestJS 10** (Node.js + TypeScript) | Architecture modulaire (DI), guards/interceptors pour la chaîne d'autorisation A6, Jest intégré |
-| Base de données | **PostgreSQL** | Relationnel robuste, Row-Level Security pour l'isolation tenant |
-| ORM | **Prisma** | Type-safe, migrations basées sur schéma, patterns multi-tenant |
-| Tests | **Jest** | Tests unitaires et tests négatifs d'autorisation (exigés par le pack A6) |
-
-> Le Node.js 20.17 ne supporte pas NestJS 11 (Node ≥ 22 requis). NestJS 10
-> est donc retenu : stable et compatible.
-
----
-
-## Pré-requis
-
-- **Node.js** v20.x
-- **npm** v10+
-- **Git**
-- **PostgreSQL** (pour la suite ; non requis pour le socle Sprint 0)
+- Node.js v20+
+- npm v10+
+- PostgreSQL 17 (en cours d'exécution)
+- Git
 
 ---
 
 ## Installation
 
 ```bash
-# 1. Installer les dépendances
+# 1. Cloner le dépôt
+git clone git@github.com:Daccord-Situation/vnr.git
+cd vnr/backend
+
+# 2. Installer les dépendances
 npm install
 
-# 2. Copier le modèle d'environnement
+# 3. Générer le client Prisma
+npx prisma generate
+
+# 4. Configurer l'environnement
 cp .env.example .env
-#   (Windows PowerShell : Copy-Item .env.example .env)
+# Éditer .env avec les valeurs réelles (voir section Configuration)
 ```
 
 ---
 
-## Lancement en local
+## Configuration
 
-### Mode développement (hot reload)
+Copier `.env.example` en `.env` et renseigner les variables :
 
-```bash
-npm run start:dev
+| Variable | Description | Exemple |
+|---|---|---|
+| `NODE_ENV` | Environnement d'exécution | `development` |
+| `PORT` | Port d'écoute du serveur | `3000` |
+| `DATABASE_URL` | URL de connexion PostgreSQL | `postgresql://user:password@localhost:5432/vnr_dev?schema=public` |
+
+> ⚠️ Ne jamais committer `.env` — il est dans `.gitignore`.
+
+### Créer la base de données PostgreSQL
+
+```sql
+-- Dans psql en tant que superuser
+CREATE USER vnr_user WITH PASSWORD 'vnr_password';
+CREATE DATABASE vnr_dev OWNER vnr_user;
+GRANT ALL PRIVILEGES ON DATABASE vnr_dev TO vnr_user;
 ```
 
-Le serveur démarre sur `http://localhost:3000` (ou le port défini dans `.env`).
-
-### Mode production
+### Appliquer les migrations Prisma
 
 ```bash
+npx prisma migrate dev --name init
+```
+
+---
+
+## Démarrage
+
+```bash
+# Mode développement (hot reload)
+npm run dev
+# → http://localhost:3000
+
+# Mode production
 npm run build
-npm run start:prod
+npm start
 ```
 
 ---
 
-## Route de santé
+## Routes disponibles
+
+| Méthode | Route | Description |
+|---|---|---|
+| GET | `/` | Informations du service |
+| GET | `/health` | État de santé + connexion base de données |
+
+### Exemple — GET /health (base connectée)
 
 ```bash
-# Vérifier que l'API est en ligne
 curl http://localhost:3000/health
 ```
-
-Réponse attendue :
 
 ```json
 {
   "status": "ok",
   "service": "vnr-backend",
-  "timestamp": "2026-10-21T08:30:00.000Z",
-  "uptime": 12,
-  "environment": "development",
-  "version": "0.0.1"
+  "timestamp": "2026-10-22T10:00:00.000Z",
+  "uptime": 5,
+  "database": { "connected": true }
 }
 ```
 
-Racine de l'API :
-
-```bash
-curl http://localhost:3000/
-```
+### Exemple — GET /health (base non joignable)
 
 ```json
 {
-  "name": "VNR Backend",
-  "version": "0.0.1",
-  "status": "running"
+  "status": "degraded",
+  "service": "vnr-backend",
+  "timestamp": "2026-10-22T10:00:00.000Z",
+  "uptime": 1,
+  "database": { "connected": false, "error": "..." }
 }
 ```
 
@@ -117,52 +119,29 @@ curl http://localhost:3000/
 
 ## Tests
 
-### Tests unitaires
-
 ```bash
+# Exécuter les tests
 npm test
-```
 
-Exécute Jest (`*.spec.ts`). Preuve Sprint 0 : `HealthController` vérifie que
-`GET /health` retourne le statut "ok".
-
-### Tests de bout en bout
-
-```bash
-npm run test:e2e
-```
-
-### Couverture
-
-```bash
+# Avec couverture
 npm run test:cov
 ```
 
----
+Résultat attendu :
 
-## Base de données (proposition Sprint 0)
-
-La configuration de la base est une **proposition** à valider par VNR – Responsable.
-Le schéma Prisma initialise la fondation multi-tenant (Tenant, User).
-
-### Commandes Prisma
-
-```bash
-# Générer le client Prisma
-npx prisma generate
-
-# Créer et appliquer une migration (base démarrée)
-npx prisma migrate dev --name init
-
-# Visualiser les données
-npx prisma studio
-
-# Formater le schéma
-npx prisma format
 ```
+PASS  src/routes/health.test.ts
+  GET /health
+    ✓ retourne HTTP 200 et { status: "ok" } quand la base est connectée
+    ✓ retourne HTTP 503 et status "degraded" quand la base est inaccessible
+    ✓ retourne un timestamp ISO 8601 valide
+  GET /
+    ✓ retourne les informations de service
+  Route inconnue
+    ✓ retourne HTTP 404 pour une route inexistante
 
-> En Sprint 0, aucune base n'est requise pour le socle. Le schéma est fourni
-> comme proposition de configuration.
+Tests: 5 passed, 5 total
+```
 
 ---
 
@@ -171,79 +150,37 @@ npx prisma format
 ```
 backend/
 ├── src/
-│   ├── main.ts                 # Point d'entrée (Nest bootstrap)
-│   ├── app.module.ts            # Module racine
-│   ├── app.controller.ts        # GET / — infos service
-│   ├── app.service.ts
-│   ├── health/                  # Module /health
-│   │   ├── health.module.ts
-│   │   ├── health.controller.ts # GET /health
-│   │   └── health.service.ts
-│   ├── common/                  # Code transversal (guards, audit, contexte tenant)
-│   ├── platform/                # Modules Platform Side (Daccord Situation)
-│   └── business/                # Modules Business Side (entreprise cliente)
+│   ├── index.ts          ← point d'entrée (démarrage serveur)
+│   ├── app.ts             ← configuration Express (routes, middlewares)
+│   ├── routes/
+│   │   ├── health.ts      ← GET /health
+│   │   └── health.test.ts ← tests automatisés
+│   └── lib/
+│       └── db.ts          ← client Prisma + vérification connexion DB
 ├── prisma/
-│   └── schema.prisma            # Fondation multi-tenant (proposition)
-├── test/
-│   └── app.e2e-spec.ts          # Tests e2e
-├── .env.example                 # Modèle de variables d'environnement (sans secret)
+│   └── schema.prisma      ← schéma PostgreSQL (fondation multi-tenant)
+├── .env.example            ← variables d'environnement (modèle sans secret)
 ├── .gitignore
-├── nest-cli.json
-├── tsconfig.json                # TypeScript strict activé
-└── package.json
+├── tsconfig.json           ← TypeScript strict
+├── package.json
+└── README.md
 ```
 
-Les dossiers `common/`, `platform/` et `business/` préfigurent la séparation
-des deux perspectives. Ils seront remplis au fil des incréments.
+---
+
+## Base de données — schéma initial (Sprint 0)
+
+La fondation multi-tenant comprend :
+- **Tenant** : entreprise cliente (cycle de vie : TRIAL → ACTIVE → SUSPENDED…)
+- **User** : utilisateur Platform (Daccord Situation) ou Business (entreprise cliente)
+
+Le schéma sera enrichi lors des incréments suivants (Phase B).
 
 ---
 
 ## Conventions Git
 
-- **Aucun secret dans Git** : `.env` est ignoré, seul `.env.example` est versionné.
-- Pas de données réelles dans le dépôt.
-- Messages de commit clairs et descriptifs.
-- Revue croisée entre développeurs avant fusion.
-- Signaler immédiatement tout blocage ou décision technique à valider.
-
----
-
-## Variables d'environnement
-
-Voir [`.env.example`](.env.example) pour la liste complète et documentée.
-
-| Variable | Description | Défaut |
-|---|---|---|
-| `NODE_ENV` | Environnement (development / production / test) | development |
-| `PORT` | Port d'écoute du serveur | 3000 |
-| `DATABASE_URL` | URL de connexion PostgreSQL (Prisma) | — |
-
----
-
-## Preuves Sprint 0 (échéance 22/10)
-
-| Preuve attendue | Statut |
-|---|---|
-| API lancée localement | ✅ `npm run start:dev` |
-| `/health` fonctionnel | ✅ `GET /health` |
-| Commandes documentées | ✅ Ce README |
-| Test basique exécuté | ✅ `npm test` |
-
----
-
-## Prochaines étapes (lots suivants)
-
-- Connexion base de données effective (PostgreSQL + Prisma).
-- Intégration frontend / API (en binôme avec Atou Diagne).
-- CI simple et premiers tests d'intégration.
-- Guards d'autorisation selon la chaîne A6 (Phase B).
-
----
-
-## Références projet
-
-- **A5** — Rôles & Profils utilisateurs du MVP (11 profils, principes RBAC).
-- **A6** — Matrice Rôles × Permissions (79 Platform + 131 Business, gel définitif).
-- **A6 Pack développeurs** — guide d'implémentation de la chaîne d'autorisation.
-- **Cadrage Global / Platform Side / Business Side** — périmètre MVP.
-- **Mandat Sprint 0** — consignes et preuves attendues.
+- Aucun secret dans Git (`.env` ignoré).
+- Commits descriptifs et atomiques.
+- Revue croisée avec Atou Diagne avant fusion.
+- Tout blocage technique → remonter immédiatement au VNR – Responsable.

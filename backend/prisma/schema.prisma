@@ -1,15 +1,13 @@
 // =============================================================================
-//  VNR — Schéma de base de données (PROPOSITION Sprint 0)
+//  VNR — Schéma de base de données
 //  Incrément I1 : socle SaaS sécurisé
 //  Développeur : Taphsir Abdoulaye
 // -----------------------------------------------------------------------------
-//  Fondation multi-tenant : chaque entreprise cliente est un tenant dont les
-//  données sont strictement isolées (invariant I01 — Phase A6).
+//  Fondation multi-tenant : chaque entreprise cliente est un tenant isolé.
+//  Invariant I01 (Phase A6) : isolation tenant absolue.
 //
-//  Ce schéma est une proposition initiale. Il sera complété au fil des
-//  incréments selon la Phase B (conception fonctionnelle détaillée).
-//  Toute décision de structure doit rester cohérente avec le cadrage et la
-//  matrice A6 (gel définitif).
+//  Ce schéma représente la fondation initiale du Sprint 0.
+//  Il sera enrichi au fil des incréments selon la Phase B.
 // =============================================================================
 
 generator client {
@@ -26,16 +24,15 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 /// Entreprise cliente = tenant. Frontière d'isolation absolue des données.
-/// Le Platform Side crée/active le tenant ; le Business Side le configure.
+/// Créé et activé par le Platform Side ; configuré par le Business Side.
 model Tenant {
-  id          String      @id @default(cuid())
-  name        String
-  status      TenantStatus @default(TRIAL)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id        String       @id @default(cuid())
+  name      String
+  status    TenantStatus @default(TRIAL)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
-  // Relations
-  users       User[]
+  users     User[]
 
   @@map("tenants")
 }
@@ -52,30 +49,28 @@ enum TenantStatus {
 }
 
 // ---------------------------------------------------------------------------
-//  Utilisateurs (Platform & Business)
+//  Utilisateurs
 // ---------------------------------------------------------------------------
 
-/// Utilisateur du système. Le domaine sépare les deux perspectives.
-/// Un utilisateur Platform appartient à Daccord Situation (tenantId null).
-/// Un utilisateur Business appartient à une entreprise cliente (tenantId requis).
+/// Utilisateur du système.
+/// - PLATFORM : utilisateur Daccord Situation (tenantId null).
+/// - BUSINESS  : utilisateur d'une entreprise cliente (tenantId requis).
 model User {
-  id          String     @id @default(cuid())
-  email       String     @unique
-  fullName    String
-  domain      UserDomain
-  status      UserStatus  @default(ACTIVE)
-  tenantId    String?
-  tenant      Tenant?     @relation(fields: [tenantId], references: [id])
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id        String     @id @default(cuid())
+  email     String     @unique
+  fullName  String
+  domain    UserDomain
+  status    UserStatus @default(ACTIVE)
+  tenantId  String?
+  tenant    Tenant?    @relation(fields: [tenantId], references: [id])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
-  // Index sur tenantId pour les requêtes scoppées.
   @@index([tenantId])
   @@map("users")
 }
 
-/// Domaine d'autorisation : Platform (Daccord Situation) ou Business (entreprise cliente).
-/// Namespaces stricts platform.* / business.* — aucune collision ni héritage implicite (A6).
+/// Namespaces stricts platform.* / business.* — aucune collision (A6).
 enum UserDomain {
   PLATFORM
   BUSINESS
@@ -86,25 +81,3 @@ enum UserStatus {
   DISABLED
   SUSPENDED
 }
-
-// ---------------------------------------------------------------------------
-//  Notes pour les incréments suivants (hors Sprint 0)
-// ---------------------------------------------------------------------------
-//  À modéliser selon la Phase B :
-//    - Role & Permission (RBAC : union des rôles + ALLOW exceptionnel Business)
-//    - Branch (Data Scope : SELF / CURRENT_BRANCH / ASSIGNED_BRANCHES / ALL_BRANCHES)
-//    - Subscription & Plan (entitlements, cycle d'abonnement)
-//    - Audit (socle immuable : actor, target, tenant/branch, before/after, reason,
-//      result, timestamp serveur, correlation_id)
-//    - Entités métier Business : Customer, Product, Supplier, Purchase, Stock,
-//      Sale, Invoice, Payment, Expense, etc.
-//
-//  Invariants A6 à respecter dans le modèle de données :
-//    I01 Isolation tenant absolue
-//    I03 ≥ 1 Super Admin VNR actif
-//    I04 ≥ 1 Owner actif par tenant
-//    I05 Réévaluation immédiate après révocation
-//    I06 Anti-escalade via rôle personnalisé, cumul, ALLOW ou scope
-//    I10 Corrections financières non destructives
-//    I13 Archivage non destructif
-//    I14 Audit fonctionnel immuable via RBAC métier
