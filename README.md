@@ -65,7 +65,7 @@ vnr/
 
 **État des composants :**
 - Backend : socle technique initial Express, TypeScript, Prisma et PostgreSQL.
-- Frontend : dossier de documentation présent, application à initialiser.
+- Frontend : React 18 · TypeScript · Vite 5 · React Router. Deux espaces (Platform Side / Business Side), layouts distincts, écrans de démonstration.
 
 L'arborescence du backend évoluera avec les prochains incréments fonctionnels.
 
@@ -87,7 +87,14 @@ L'arborescence du backend évoluera avec les prochains incréments fonctionnels.
 
 ### Frontend
 
-La technologie frontend reste à définir et à initialiser dans le cadre du projet.
+| Composant | Choix |
+|---|---|
+| Framework | React 18 |
+| Langage | TypeScript (strict) |
+| Bundler | Vite 5 |
+| Routing | React Router DOM v6 |
+
+Stack validée par VNR – Responsable. Deux espaces distincts : Platform Side (`/platform`) et Business Side (`/business`).
 
 ---
 
